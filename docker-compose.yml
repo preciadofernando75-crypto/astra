@@ -1,0 +1,40 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15
+    container_name: astra-db
+    environment:
+      POSTGRES_USER: astra
+      POSTGRES_PASSWORD: astra-password
+      POSTGRES_DB: astra_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U astra"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  astra:
+    build: .
+    container_name: astra-app
+    environment:
+      FLASK_ENV: production
+      DATABASE_URL: postgresql://astra:astra-password@db:5432/astra_db
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      SECRET_KEY: ${SECRET_KEY}
+    ports:
+      - "5000:5000"
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./uploads:/app/uploads
+      - ./logs:/app/logs
+    command: gunicorn --bind 0.0.0.0:5000 astra_enhanced:app
+
+volumes:
+  postgres_data:
